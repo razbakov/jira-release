@@ -59,17 +59,26 @@ import fs from "fs";
   }
 })();
 
-function getUserInput(prompt, defaultValue = "") {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
+function getUserInput(prompt) {
+  console.log(prompt);
+
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: true,
+    });
+
+    let input = "";
+
+    rl.on("line", (line) => {
+      input += line + "\n";
+    });
+
+    rl.on("close", () => {
+      resolve(input.trim());
+    });
   });
-  return new Promise((resolve) =>
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer || defaultValue);
-    })
-  );
 }
 
 function extractJiraKeys(text) {
