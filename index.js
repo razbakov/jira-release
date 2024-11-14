@@ -19,7 +19,6 @@ const mainBranch = process.argv[2] || "main";
   // Step 2: Compare issues
   const currentBranch = getCurrentBranch();
   const commitMessages = getGitCommitMessages(currentBranch, mainBranch);
-  const commitIssues = extractJiraKeys(commitMessages.join("\n"));
 
   // Exclude merge commits
   const filteredCommitMessages = commitMessages.filter(
