@@ -30,54 +30,64 @@
 
 ## Usage
 
-Simply run the `jira-release` command in your terminal, optionally specifying a branch:
+Configure `jira-release` as your Git editor to assist with interactive rebases. It will parse the `git-rebase-todo` file, compare commit messages against Jira release notes, and suggest changes.
 
 ```bash
 jira-release [branch]
 ```
 
-### Steps:
+### Setup
 
-1. **Paste Release Notes**:
-   The tool will prompt you to paste Jira release notes directly (e.g., `Ctrl+D` to finish input).
+1. Set `jira-release` as your Git editor:
 
-2. **Results**:
-   - **Found in commits**: Jira issues present in both release notes and commits.
-   - **Missing in commits**: Jira issues in the release notes but missing from commits.
-   - **Extra in commits**: Jira issues in commits but not in the release notes.
+   ```bash
+   git config --global core.editor "jira-release"
+   ```
 
-### Example:
+2. Start an interactive rebase:
 
-```plaintext
-Welcome to Jira CLI Tool!
+   ```bash
+   git rebase -i <branch>
+   ```
 
-Using branch: "main"
+3. During the rebase:
 
-Paste your Jira release notes below (Ctrl+D to finish):
-PROJ-123: Implement login feature
-PROJ-456: Fix logout issue
-PROJ-789: Add user profile updates
+   - The tool will prompt you to paste Jira release notes.
+   - It will process the `git-rebase-todo` file to:
+     - Keep commits matching Jira issues.
+     - Comment out commits not in the release notes (suggesting to drop them).
+   - The updated file will open in Cursor Editor.
 
-Extracted Jira issues: PROJ-123, PROJ-456, PROJ-789
+4. Save and close the editor to continue the rebase.
 
-Results:
-✅ Found in commits: PROJ-123, PROJ-456
-❌ Missing in commits: PROJ-789
-🚨 Extra in commits: PROJ-999
-```
+### Example Workflow
 
-## Requirements
+1. Start a rebase:
 
-- **Node.js** v16+ (tested with Node.js v18.19.0)
-- A Git repository to analyze commits.
+   ```bash
+   git rebase -i main
+   ```
 
-## Development
+2. Tool prompt:
 
-To run the tool locally without installing it globally:
+   ```plaintext
+   Paste your Jira release notes below (Ctrl+D to finish):
+   PROJ-123: Implement login feature
+   PROJ-456: Fix logout issue
+   ```
 
-```bash
-npm start
-```
+3. Processed `git-rebase-todo`:
+
+   ```plaintext
+   pick abc123 PROJ-123: Implement login feature
+   pick def456 PROJ-456: Fix logout issue
+   # drop ghi789 PROJ-999: Deprecated feature
+   ```
+
+4. Save and continue the rebase:
+   ```bash
+   git rebase --continue
+   ```
 
 ## Contributing
 

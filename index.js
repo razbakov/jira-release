@@ -2,12 +2,18 @@
 
 import readline from "readline";
 import { execSync } from "child_process";
-
-const mainBranch = process.argv[2] || "main";
+import fs from "fs";
 
 (async function main() {
-  console.log("Welcome to Jira CLI Tool!");
-  console.log(`Using branch: "${mainBranch}"\n`);
+  const rebaseTodoPath = process.argv[2];
+  if (!rebaseTodoPath) {
+    console.error(
+      "Error: This tool is intended to be used during a Git rebase."
+    );
+    process.exit(1);
+  }
+
+  console.log("Welcome to Jira CLI Tool for Git Rebase!");
 
   // Step 1: Paste release notes
   const releaseNotes = await getUserInput(
@@ -16,77 +22,27 @@ const mainBranch = process.argv[2] || "main";
   const issues = extractJiraKeys(releaseNotes);
   console.log(`\nExtracted Jira issues: ${issues.join(", ")}\n`);
 
-  // Step 2: Compare issues
-  const currentBranch = getCurrentBranch();
-  const commitMessages = getGitCommitMessages(currentBranch, mainBranch);
+  // Step 2: Read and process git-rebase-todo
+  const rebaseTodo = fs.readFileSync(rebaseTodoPath, "utf8");
+  const { updatedTodo, stats } = processRebaseTodo(rebaseTodo, issues);
 
-  // Exclude merge commits
-  const filteredCommitMessages = commitMessages.filter(
-    (message) => !message.includes("Merged in")
-  );
-  const filteredCommitIssues = extractJiraKeys(
-    filteredCommitMessages.join("\n")
-  );
+  // Display statistics
+  console.log("\nCommit Statistics:");
+  console.log(`✅ Keep: ${stats.kept} commits`);
+  console.log(`❌ Drop: ${stats.dropped} commits`);
 
-  const missing = issues.filter(
-    (issue) => !filteredCommitIssues.includes(issue)
-  );
-  const extra = filteredCommitIssues.filter((issue) => !issues.includes(issue));
-  const nonJiraCommits = filteredCommitMessages.filter(
-    (message) => !extractJiraKeys(message).length
-  );
+  // Step 3: Write updated rebase-todo back to the file
+  fs.writeFileSync(rebaseTodoPath, updatedTodo);
 
-  console.log("\n");
-  console.log("Results:");
-  console.log(
-    `✅ Found in commits: ${issues
-      .filter((issue) => filteredCommitIssues.includes(issue))
-      .join(", ")}`
-  );
-  console.log(`❌ Missing in commits: ${missing.join(", ")}`);
-  console.log(`🚨 Extra in commits: ${extra.join(", ")}`);
-  if (nonJiraCommits.length) {
-    console.log(`🚫 Non-Jira commits: ${nonJiraCommits.length} commits`);
-    nonJiraCommits.forEach((message, index) => {
-      console.log(`  ${index + 1}. ${message}`);
-    });
-  }
-
-  // Output commit messages
-  console.log("\nCommit Messages:");
-  filteredCommitMessages.forEach((message, index) => {
-    const jiraKey = extractJiraKeys(message)[0];
-    let prefix = "✅"; // default for valid commits
-
-    if (!jiraKey) {
-      prefix = "🚫"; // non-Jira commit
-    } else if (extra.includes(jiraKey)) {
-      prefix = "🚨"; // extra commit
-    } else if (!issues.includes(jiraKey)) {
-      prefix = "❌"; // missing from release notes
-    }
-
-    console.log(` ${prefix} ${index + 1}. ${message}`);
-  });
-
-  // Step 3: Output git rebase list with pick/drop list of commits
-  const commitHashes = execSync(
-    `git log ${mainBranch}..${currentBranch} --pretty=format:"%h"` // Changed to use short commit hashes
-  )
-    .toString()
-    .split("\n");
-  console.log("\nGit Rebase List:");
-  // Rebase using a different order
-  for (let i = filteredCommitMessages.length - 1; i >= 0; i--) {
-    const message = filteredCommitMessages[i];
-    if (
-      extra.includes(extractJiraKeys(message)[0]) ||
-      nonJiraCommits.includes(message)
-    ) {
-      console.log(`drop ${commitHashes[i]} ${message}`);
-    } else {
-      console.log(`pick ${commitHashes[i]} ${message}`);
-    }
+  // Step 4: Try to use VSCode, fall back to git's core.editor if VSCode isn't available
+  try {
+    execSync(`cursor --wait "${rebaseTodoPath}"`, { stdio: "inherit" });
+    console.log("\nUpdated rebase-todo file opened in VSCode.");
+  } catch (error) {
+    console.log("\nVSCode not available, using git configured editor...");
+    const editor =
+      execSync("git config core.editor").toString().trim() || "vim";
+    execSync(`${editor} "${rebaseTodoPath}"`, { stdio: "inherit" });
   }
 })();
 
@@ -107,12 +63,58 @@ function extractJiraKeys(text) {
   return Array.from(new Set(text.match(/([A-Z]+-\d+)/g) || []));
 }
 
-function getCurrentBranch() {
-  return execSync("git rev-parse --abbrev-ref HEAD").toString().trim();
-}
+function processRebaseTodo(rebaseTodo, issues) {
+  const lines = rebaseTodo.split("\n");
+  const stats = { kept: 0, dropped: 0 };
 
-function getGitCommitMessages(branch, compareBranch) {
-  return execSync(`git log ${compareBranch}..${branch} --pretty=format:"%s"`)
-    .toString()
-    .split("\n");
+  // Track which issues we find in commits
+  const foundIssues = new Set();
+  lines.forEach((line) => {
+    const match = line.match(/^\s*pick\s+(\w+)\s+(.*)$/);
+    if (match) {
+      const jiraKey = extractJiraKeys(match[2])[0];
+      if (jiraKey && issues.includes(jiraKey)) {
+        foundIssues.add(jiraKey);
+      }
+    }
+  });
+
+  // Find missing issues
+  const missingIssues = issues.filter((issue) => !foundIssues.has(issue));
+
+  // Add header comments showing expected and missing Jira issues
+  const processedLines = [
+    `# Expected Jira issues from release notes:`,
+    `# ${issues.join(", ")}`,
+    `#`,
+    missingIssues.length > 0
+      ? `# Missing issues:`
+      : "# All expected issues found in commits",
+    missingIssues.length > 0 ? `# ${missingIssues.join(", ")}` : "#",
+    `#`,
+    ...lines.map((line) => {
+      const match = line.match(/^\s*pick\s+(\w+)\s+(.*)$/);
+      if (!match) return line; // Keep non-commit lines as-is
+
+      const [_, commitHash, commitMessage] = match;
+      const jiraKey = extractJiraKeys(commitMessage)[0];
+
+      if (jiraKey && issues.includes(jiraKey)) {
+        stats.kept++;
+        return `pick ${commitHash} ${commitMessage}`;
+      } else {
+        stats.dropped++;
+        if (jiraKey) {
+          return `drop ${commitHash} ${commitMessage}`;
+        } else {
+          return `drop ${commitHash} ${commitMessage}`;
+        }
+      }
+    }),
+  ];
+
+  return {
+    updatedTodo: processedLines.join("\n"),
+    stats,
+  };
 }
