@@ -1,0 +1,23 @@
+{
+  "name": "jira-release",
+  "version": "1.0.0",
+  "description": "A CLI tool to check Jira issues in Git commits against a release list",
+  "main": "index.js",
+  "bin": {
+    "jira-release": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "jira",
+    "cli",
+    "git",
+    "release",
+    "issues"
+  ],
+  "author": "Alex Razbakov",
+  "license": "MIT",
+  "dependencies": {},
+  "type": "module"
+}
