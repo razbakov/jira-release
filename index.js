@@ -5,15 +5,32 @@ import { execSync } from "child_process";
 import fs from "fs";
 
 (async function main() {
-  const rebaseTodoPath = process.argv[2];
-  if (!rebaseTodoPath) {
-    console.error(
-      "Error: This tool is intended to be used during a Git rebase."
+  const args = process.argv.slice(2);
+
+  // Ensure required parameters (branch and editor) are provided
+  if (args.length < 2) {
+    console.error("Error: Missing required arguments.");
+    console.log("\nUsage: jira-release <editor> <file_to_edit>");
+    console.log("\nExamples:");
+    console.log(
+      `  git config --global core.editor "jira-release 'code --wait'"`
     );
     process.exit(1);
   }
 
-  console.log("Welcome to Jira CLI Tool for Git Rebase!");
+  const editor = args[0]; // Second argument: editor command
+  const targetFile = args[1]; // Third argument: file to edit (passed by Git)
+
+  if (!targetFile.includes("git-rebase-todo")) {
+    console.log(
+      "Standard Git operation detected. Opening the file in the editor..."
+    );
+    execSync(`${editor} "${targetFile}"`, { stdio: "inherit" });
+    return;
+  }
+
+  console.log(`Using editor: ${editor}`);
+  console.log(`Editing file: ${targetFile}`);
 
   // Step 1: Paste release notes
   const releaseNotes = await getUserInput(
@@ -23,7 +40,7 @@ import fs from "fs";
   console.log(`\nExtracted Jira issues: ${issues.join(", ")}\n`);
 
   // Step 2: Read and process git-rebase-todo
-  const rebaseTodo = fs.readFileSync(rebaseTodoPath, "utf8");
+  const rebaseTodo = fs.readFileSync(targetFile, "utf8");
   const { updatedTodo, stats } = processRebaseTodo(rebaseTodo, issues);
 
   // Display statistics
@@ -32,17 +49,13 @@ import fs from "fs";
   console.log(`❌ Drop: ${stats.dropped} commits`);
 
   // Step 3: Write updated rebase-todo back to the file
-  fs.writeFileSync(rebaseTodoPath, updatedTodo);
+  fs.writeFileSync(targetFile, updatedTodo);
 
-  // Step 4: Try to use VSCode, fall back to git's core.editor if VSCode isn't available
+  // Step 4: Try to use the editor
   try {
-    execSync(`cursor --wait "${rebaseTodoPath}"`, { stdio: "inherit" });
-    console.log("\nUpdated rebase-todo file opened in VSCode.");
+    execSync(`${editor} "${targetFile}"`, { stdio: "inherit" });
   } catch (error) {
-    console.log("\nVSCode not available, using git configured editor...");
-    const editor =
-      execSync("git config core.editor").toString().trim() || "vim";
-    execSync(`${editor} "${rebaseTodoPath}"`, { stdio: "inherit" });
+    console.log("\nEditor not available");
   }
 })();
 

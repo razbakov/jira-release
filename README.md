@@ -40,8 +40,22 @@ jira-release [branch]
 
 1. Set `jira-release` as your Git editor:
 
+   Cursor:
+
    ```bash
-   git config --global core.editor "jira-release"
+   git config --global core.editor "jira-release 'cursor --wait'"
+   ```
+
+   VSCode:
+
+   ```bash
+   git config --global core.editor "jira-release 'code --wait'"
+   ```
+
+   VIM:
+
+   ```bash
+   git config --global core.editor "jira-release 'vim'"
    ```
 
 2. Start an interactive rebase:
