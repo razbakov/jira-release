@@ -23,6 +23,9 @@ const mainBranch = process.argv[2] || "main";
 
   const missing = issues.filter((issue) => !commitIssues.includes(issue));
   const extra = commitIssues.filter((issue) => !issues.includes(issue));
+  const nonJiraCommits = commitMessages.filter(
+    (message) => !extractJiraKeys(message).length
+  );
 
   console.log("\n");
   console.log("Results:");
@@ -33,6 +36,35 @@ const mainBranch = process.argv[2] || "main";
   );
   console.log(`❌ Missing in commits: ${missing.join(", ")}`);
   console.log(`🚨 Extra in commits: ${extra.join(", ")}`);
+  console.log(`🚫 Non-Jira commits: ${nonJiraCommits.length} commits`);
+  console.log("Non-Jira commit messages:");
+  nonJiraCommits.forEach((message, index) => {
+    console.log(`  ${index + 1}. ${message}`);
+  });
+
+  // Output commit messages
+  console.log("\nCommit Messages:");
+  commitMessages.forEach((message, index) => {
+    console.log(`  ${index + 1}. ${message}`);
+  });
+
+  // Step 3: Output git rebase list with pick/drop list of commits
+  const commitHashes = execSync(
+    `git log ${mainBranch}..${currentBranch} --pretty=format:"%H"`
+  )
+    .toString()
+    .split("\n");
+  console.log("\nGit Rebase List:");
+  commitMessages.forEach((message, index) => {
+    if (
+      extra.includes(extractJiraKeys(message)[0]) ||
+      nonJiraCommits.includes(message)
+    ) {
+      console.log(`drop ${commitHashes[index]} ${message}`);
+    } else {
+      console.log(`pick ${commitHashes[index]} ${message}`);
+    }
+  });
 })();
 
 function getUserInput(prompt, defaultValue = "") {
