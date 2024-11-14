@@ -62,7 +62,7 @@ const mainBranch = process.argv[2] || "main";
 
   // Step 3: Output git rebase list with pick/drop list of commits
   const commitHashes = execSync(
-    `git log ${mainBranch}..${currentBranch} --pretty=format:"%H"`
+    `git log ${mainBranch}..${currentBranch} --pretty=format:"%h"` // Changed to use short commit hashes
   )
     .toString()
     .split("\n");
