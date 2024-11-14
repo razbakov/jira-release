@@ -36,16 +36,28 @@ const mainBranch = process.argv[2] || "main";
   );
   console.log(`❌ Missing in commits: ${missing.join(", ")}`);
   console.log(`🚨 Extra in commits: ${extra.join(", ")}`);
-  console.log(`🚫 Non-Jira commits: ${nonJiraCommits.length} commits`);
-  console.log("Non-Jira commit messages:");
-  nonJiraCommits.forEach((message, index) => {
-    console.log(`  ${index + 1}. ${message}`);
-  });
+  if (nonJiraCommits.length) {
+    console.log(`🚫 Non-Jira commits: ${nonJiraCommits.length} commits`);
+    nonJiraCommits.forEach((message, index) => {
+      console.log(`  ${index + 1}. ${message}`);
+    });
+  }
 
   // Output commit messages
   console.log("\nCommit Messages:");
   commitMessages.forEach((message, index) => {
-    console.log(`  ${index + 1}. ${message}`);
+    const jiraKey = extractJiraKeys(message)[0];
+    let prefix = "✅"; // default for valid commits
+
+    if (!jiraKey) {
+      prefix = "🚫"; // non-Jira commit
+    } else if (extra.includes(jiraKey)) {
+      prefix = "🚨"; // extra commit
+    } else if (!issues.includes(jiraKey)) {
+      prefix = "❌"; // missing from release notes
+    }
+
+    console.log(` ${prefix} ${index + 1}. ${message}`);
   });
 
   // Step 3: Output git rebase list with pick/drop list of commits
