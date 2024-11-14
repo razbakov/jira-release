@@ -8,6 +8,7 @@
 - Compares issues against Git commit messages.
 - Detects missing and extra Jira issues in the selected branch.
 - Simple and user-friendly interactive workflow.
+- Supports specifying a custom branch for comparison.
 
 ## Installation
 
@@ -29,10 +30,10 @@
 
 ## Usage
 
-Simply run the `jira-release` command in your terminal:
+Simply run the `jira-release` command in your terminal, optionally specifying a branch:
 
 ```bash
-jira-release
+jira-release [branch]
 ```
 
 ### Steps:
@@ -40,10 +41,7 @@ jira-release
 1. **Paste Release Notes**:
    The tool will prompt you to paste Jira release notes directly (e.g., `Ctrl+D` to finish input).
 
-2. **Select Git Branch**:
-   By default, the tool detects the current Git branch, but you can specify another branch.
-
-3. **Results**:
+2. **Results**:
    - **Found in commits**: Jira issues present in both release notes and commits.
    - **Missing in commits**: Jira issues in the release notes but missing from commits.
    - **Extra in commits**: Jira issues in commits but not in the release notes.
@@ -53,14 +51,14 @@ jira-release
 ```plaintext
 Welcome to Jira CLI Tool!
 
+Using branch: "main"
+
 Paste your Jira release notes below (Ctrl+D to finish):
 PROJ-123: Implement login feature
 PROJ-456: Fix logout issue
 PROJ-789: Add user profile updates
 
 Extracted Jira issues: PROJ-123, PROJ-456, PROJ-789
-
-Detected branch: "main". Use this branch? (y/n): y
 
 Results:
 ✅ Found in commits: PROJ-123, PROJ-456
