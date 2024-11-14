@@ -21,9 +21,19 @@ const mainBranch = process.argv[2] || "main";
   const commitMessages = getGitCommitMessages(currentBranch, mainBranch);
   const commitIssues = extractJiraKeys(commitMessages.join("\n"));
 
-  const missing = issues.filter((issue) => !commitIssues.includes(issue));
-  const extra = commitIssues.filter((issue) => !issues.includes(issue));
-  const nonJiraCommits = commitMessages.filter(
+  // Exclude merge commits
+  const filteredCommitMessages = commitMessages.filter(
+    (message) => !message.includes("Merged in")
+  );
+  const filteredCommitIssues = extractJiraKeys(
+    filteredCommitMessages.join("\n")
+  );
+
+  const missing = issues.filter(
+    (issue) => !filteredCommitIssues.includes(issue)
+  );
+  const extra = filteredCommitIssues.filter((issue) => !issues.includes(issue));
+  const nonJiraCommits = filteredCommitMessages.filter(
     (message) => !extractJiraKeys(message).length
   );
 
@@ -31,7 +41,7 @@ const mainBranch = process.argv[2] || "main";
   console.log("Results:");
   console.log(
     `✅ Found in commits: ${issues
-      .filter((issue) => commitIssues.includes(issue))
+      .filter((issue) => filteredCommitIssues.includes(issue))
       .join(", ")}`
   );
   console.log(`❌ Missing in commits: ${missing.join(", ")}`);
@@ -45,7 +55,7 @@ const mainBranch = process.argv[2] || "main";
 
   // Output commit messages
   console.log("\nCommit Messages:");
-  commitMessages.forEach((message, index) => {
+  filteredCommitMessages.forEach((message, index) => {
     const jiraKey = extractJiraKeys(message)[0];
     let prefix = "✅"; // default for valid commits
 
@@ -67,16 +77,18 @@ const mainBranch = process.argv[2] || "main";
     .toString()
     .split("\n");
   console.log("\nGit Rebase List:");
-  commitMessages.forEach((message, index) => {
+  // Rebase using a different order
+  for (let i = filteredCommitMessages.length - 1; i >= 0; i--) {
+    const message = filteredCommitMessages[i];
     if (
       extra.includes(extractJiraKeys(message)[0]) ||
       nonJiraCommits.includes(message)
     ) {
-      console.log(`drop ${commitHashes[index]} ${message}`);
+      console.log(`drop ${commitHashes[i]} ${message}`);
     } else {
-      console.log(`pick ${commitHashes[index]} ${message}`);
+      console.log(`pick ${commitHashes[i]} ${message}`);
     }
-  });
+  }
 })();
 
 function getUserInput(prompt, defaultValue = "") {
