@@ -23,7 +23,7 @@ import fs from "fs";
 
   if (!targetFile.includes("git-rebase-todo")) {
     console.log(
-      "Standard Git operation detected. Opening the file in the editor..."
+      "Standard Git operation detected. Skip release notes processing."
     );
     execSync(`${editor} "${targetFile}"`, { stdio: "inherit" });
     return;
@@ -36,6 +36,13 @@ import fs from "fs";
   const releaseNotes = await getUserInput(
     "Paste your Jira release notes below (Ctrl+D to finish):\n"
   );
+
+  if (!releaseNotes) {
+    console.log("No release notes provided. Skip release notes processing.");
+    execSync(`${editor} "${targetFile}"`, { stdio: "inherit" });
+    return;
+  }
+
   const issues = extractJiraKeys(releaseNotes);
   console.log(`\nExtracted Jira issues: ${issues.join(", ")}\n`);
 
